@@ -1,7 +1,7 @@
 source('emulationHelper.R')
 load('raw_temperatures.RData')
-load('everything_1463_1463_310_1010.Rdata')
-mc.cores = 8 
+load('backup_1463_1463_310_1010.Rdata')
+mc.cores = 8
 norm.x.df = c(14, 6, 3)
 bulk.x.df = c(14, 6, 3)
 tail.x.df = c(3, 1, 0)

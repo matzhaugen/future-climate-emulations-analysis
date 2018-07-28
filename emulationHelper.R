@@ -7,8 +7,6 @@ library(gplots)
 library(fields)
 library(RColorBrewer)
 library(xts)
-# library(Matching)
-# library(lubridate)
 library(reshape2)
 library(gridExtra) # also loads grid
 library(grid)
@@ -69,7 +67,7 @@ outer_concat <- function(la, lo) {
 get.volcanic <- function(mlat) {
   days.per.month = c(31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
   cdpm = cumsum(days.per.month)
-  ncdata = nc_open('/project/moyer/mahaugen/proj2/hindcast/CCSM4_volcanic_1850-2008_prototype1.nc')
+  ncdata = nc_open('CCSM4_volcanic_1850-2008_prototype1.nc')
   volc = ncvar_get(ncdata, 'MMRVOLC')
   lev = ncvar_get(ncdata, 'lev')
   lat = ncvar_get(ncdata, 'lat')
