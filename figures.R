@@ -16,8 +16,8 @@
 source('emulationHelper.R')
 load('raw_temperatures.RData')
 co2 = read.table("RCP85_MIDYR_CONC.DAT", skip=38, header=TRUE)
-# load('everything_1463_1463_310_1010.Rdata')
-load('backup_1463_1463_310_1010.Rdata')
+load('everything_1463_1463_310_1010.Rdata')
+# load('backup_1463_1463_310_1010.Rdata')
 # IMPORTANT
 # Load ONLY if this file exists and maps.R has run successfully.
 # OTHERWISE run maps.R to do any plotting
@@ -217,10 +217,10 @@ ggsave('figures/QuantileDoubleAllInclusive.png', pp, width=13, height=4)
 # Plot jacknife variance estimates
 qout.lens = lapply(qout.jack, function(x) x$lens)
 m=0;null.idx = unlist(lapply(qout.lens[[3]], function(x) {m<<-m+1; if(is.null(x$q)) m}))
-res.lens = lapply(qout.lens, model.variance.jackknife) # Takes a minute
+res.lens = lapply(qout.lens, model.variance.jackknife, mc.cores=16) # Takes a minute
 pp.lens = plot.jackknife(res.lens)
 ggsave('figures/JackknifeStdLens.png', pp.lens, width=15, height=10)
-
+	
 
 #########################################
 ########### FIGURE 7 ####################

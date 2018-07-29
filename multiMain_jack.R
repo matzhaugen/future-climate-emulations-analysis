@@ -2,7 +2,7 @@ source('emulationHelper.R')
 load('raw_temperatures.RData')
 mc.cores = 8 # Set depending on your CPU power
 # If running on bigmem, set the following to 2, to use 16 cores in total.
-mc.cores.sub = 2 
+mc.cores.sub = 3
 
 ####################################
 # Pre defined constants #

@@ -1,6 +1,6 @@
 # future-climate-emulations-analysis
 
-This repository contain the code necessary to produce the figures to the paper [CITE].
+This repository contain the code necessary to produce the figures to the paper [CITE]. It is highly recommended to work on a multi-core machine with preferably 8 cores and at least 50Gb RAM.
 
 
 # Reproducing the temperature projections + figures
