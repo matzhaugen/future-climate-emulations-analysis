@@ -46,23 +46,23 @@ qout.all.inclusive = mclapply(1:length(location), function(j) {
 				q, q_tail, q_norm, mlat=mlat)
 		
 	print('Fitting Lens model')
-	qout.lens = quantile.map(norm.x.df, bulk.x.df, y.ryan[[j]], tail.x.df, 
+	qout.lens = quantile.map(norm.x.df, bulk.x.df, y.lens[[j]], tail.x.df, 
 				q, q_tail, q_norm, mlat=mlat)
 	
 	list(ryan=qout.ryan, lens=qout.lens)
 }, mc.cores=mc.cores)
 
-j = 0
-which.pred = c(3,4)
-which.pred.tail = c(2,3)
+j = 1
+which.pred = c(3,4) # which predictors to allow to vary
+which.pred.tail = c(2,3) # same for the tail predictors
 qout.nested = mclapply(1:length(qout.all.inclusive), function(j) {
 	print(j)
 	mlat = location[[j]][1]
 	mlon = location[[j]][2]
 	#Import model data
 	print('Fitting Ryan model')
-	qout.lens.nested = quantile.map.nested(qout.all.inclusive[[j]]$lens, 
-		y.ryan[[j]][,1],  q, q_tail, q_norm, 
+	qout.lens.nested = quantile.map.nested(input=qout.all.inclusive[[j]]$lens, 
+		model.y=y.ryan[[j]][,1],  q, q_tail, q_norm, 
 		mlat=mlat, which.pred=which.pred, which.pred.tail=which.pred.tail)
 		
 	print('Fitting Lens model')

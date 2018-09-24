@@ -29,8 +29,8 @@ export.LENS.RYAN.data <- function(location) {
     #Import model data
     y.ryan[[i]] = getModelData2(mlat, mlon)['1920/2099']
     y.lens[[i]] = getLENSData(mlat, mlon, 1)['1920/2099']    
-    reanalysis_y = getReanalysisData2(mlat, mlon)
-    reanalysis_y = reanalysis_y[.indexhour(reanalysis_y) %in% 12]
+    reanalysis_y = getReanalysisData3(mlat, mlon)
+    # reanalysis_y = reanalysis_y[.indexhour(reanalysis_y) %in% 12]
     dayofyear = as.numeric(strftime(time(reanalysis_y), format = "%j"))
     rea.y[[i]] = reanalysis_y[dayofyear!=366]
     i = i + 1
@@ -157,7 +157,7 @@ multi.marginal.summary.plot.all.new <- function(location, loc.names3, mseason, m
   maps, raw.data, include.all.runs=FALSE, leg.str=c('Target', 'Est-LENS', 'Est-SFK15'), leg.pos=1) {
   cex.lab = 1.8
   y2lab = expression(paste("Estimate [", degree*C, ']'))
-  xlab = expression(paste("Target [", degree*C, ']'))
+  xlab = expression(paste("Temperature [", degree*C, ']'))
   ylab = 'Density'
   par(oma=c(2,2,2,3))
   par(mfrow=c(2,4))
@@ -279,7 +279,7 @@ multi.marginal.summary.plot <- function(location, loc.names3, mseason, myears, m
 }
 
 # x appears in blue and y appears in red.
-comp.histlike <- function(data, breaks=20, ...) {
+comp.histlike <- function(data, breaks=20, colors=1:length(data), ...) {
   
   h.x = lapply(data, function(xi) hist(as.numeric(xi), breaks=breaks, plot=FALSE))   
   dots = list(...)
@@ -288,22 +288,23 @@ comp.histlike <- function(data, breaks=20, ...) {
   u = range(unlist(lapply(h.x, function(h.xi) h.xi$breaks)))
   lwd = 1
   if (any(names(dots) %in% lwd)) lty=dots$lwd
-  
+    
   breaks = seq(u[1],u[2]+dx,dx)
+  k = 1
   if (max(breaks)<max(ylim)) breaks = c(breaks,max(breaks)+dx)
     if ("plot" %in% names(dots) && dots$plot == FALSE) {
       hist(x,breaks=breaks, plot=FALSE) 
     } else if ("xlim" %in% names(dots)) {
-      histlike(breaks=h.x[[1]]$breaks,values=h.x[[1]]$density,ylim=ylim,col="black", ...)
+      histlike(breaks=h.x[[1]]$breaks,values=h.x[[1]]$density,ylim=ylim,col=colors[k], ...)
     } else {
-      histlike(breaks=h.x[[1]]$breaks,values=h.x[[1]]$density,ylim=ylim,col="black", xlim=u, ...)
+      histlike(breaks=h.x[[1]]$breaks,values=h.x[[1]]$density,ylim=ylim,col=colors[k], xlim=u, ...)
     }
 
   # abline(v=median(x), col="blue")
-    k = 1
+    
   lapply(h.x[-1], function(h.xi) {
     k <<- k + 1
-    histlike(breaks=h.xi$breaks,values=h.xi$density, col=k, lwd=lwd, add=TRUE)
+    histlike(breaks=h.xi$breaks,values=h.xi$density, col=colors[k], lwd=lwd, add=TRUE)
   })
   h.x
 }
@@ -319,11 +320,11 @@ seasonal.marginal.summary.plot <- function(y, y.hat, season, season.names) {
   }
 }
 
-marginal.summary.plot.multi <- function(data) {
+marginal.summary.plot.multi <- function(data, colors=1:length(data)) {
   cex.points=.3
   cex.axis = 2
   comp.histlike(data, breaks=70,
-    xlab="", cex.axis=cex.axis, cex.lab=1.8, ylab='')
+    xlab="", cex.axis=cex.axis, cex.lab=1.8, ylab='', colors=colors)
   ndata = length(data)
   k=1
   for (i in 1:ndata) {
@@ -340,9 +341,10 @@ marginal.summary.plot.multi <- function(data) {
     } 
     if (k == 2) {
       par(new=T)
-      plot(sx, sy, axes=F, xlab=NA, ylab=NA, cex=cex.points, col=alpha(i, .5))
+      
+      plot(sx, sy, axes=F, xlab=NA, ylab=NA, cex=cex.points, col=alpha(colors[i], .5))
     } else if (k > 2) {
-      points(sx, sy, cex=cex.points, col=alpha(i, .5))
+      points(sx, sy, cex=cex.points, col=alpha(colors[i], .5))
     }
     k=k+1
   }
@@ -483,8 +485,9 @@ mywireframe <- function(x, y, z, ...) {
 
 # Plot the quantile map applied twice, with the last time applied in reverse.
 # if the transform is the same you should get the identity transform or a zero surface.
-plot.double.transform.all.inclusive <- function(input1, input2, year.i=70, year.f=170, logplot=TRUE, take.abs=FALSE, ...) {  
-  ylab = list(label='Percentile', y=.5, rot=-40, cex=cex.lab)
+plot.double.transform.all.inclusive <- function(input1, input2, year.i=70, year.f=170, 
+  logplot=TRUE, take.abs=FALSE, ...) {  
+  ylab = list(label='Probability', y=.5, rot=-40, cex=cex.lab)
   lw <- list(left.padding = list(x = -0.2, units = "inches"))
   lw$right.padding <- list(x = -0.2, units = "inches")
   lh <- list(bottom.padding = list(x = -.2, units = "inches"))
@@ -508,7 +511,7 @@ plot.double.transform.all.inclusive <- function(input1, input2, year.i=70, year.
   }
 
   trellis.par.set("axis.line",list(col=NA,lty=1,lwd=1))
-  p = mywireframe(mdays, q_all, double.dy[,length(q_all):1], 
+  p = mywireframe(mdays, rev(q_all), double.dy, 
         par.settings = list(axis.line = list(col = 'transparent')),
         lattice.options = list(layout.widths = lw, layout.heights = lh),
         ylab=ylab, 
@@ -548,7 +551,7 @@ plot.double.transform <- function(input1, input2, year.i=70, year.f=170, logplot
   double.dy = double.dy / choose(nfolds,2)
 
   trellis.par.set("axis.line",list(col=NA,lty=1,lwd=1))
-  p = mywireframe(mdays, q_all, double.dy[,length(q_all):1], 
+  p = mywireframe(mdays, rev(q_all), double.dy, 
         par.settings = list(axis.line = list(col = 'transparent')),
         lattice.options = list(layout.widths = lw, layout.heights = lh),
         ylab=ylab, 
@@ -557,22 +560,21 @@ plot.double.transform <- function(input1, input2, year.i=70, year.f=170, logplot
 }
 
 plot.jackknife <- function(res) {
-  cex.lab=1.5
+  cex.lab=1.2
   xlab = list(label='Days', y=.5, rot=30, cex=cex.lab)
   zlabel = expression(paste("|Error| [", degree*C, ']'))
   zlab = list(label=zlabel, x=.48, rot=90, cex=cex.lab)
   qticks = qticks = c(6, 8, 11, 14, 16)
-  mdays = seq(1, 365, 10)
   
-  ylab = list(label='Percentile', y=.5, rot=-40, cex=cex.lab)
+  ylab = list(label='Probability', y=.5, rot=-40, cex=cex.lab)
   lw <- list(left.padding = list(x = -0.2, units = "inches"))
   lw$right.padding <- list(x = -0.2, units = "inches")
-  lh <- list(bottom.padding = list(x = -.2, units = "inches"))
+  lh <- list(bottom.padding = list(x = -.4, units = "inches"))
   lh$top.padding <- list(x = -.2, units = "inches")
-  scales=list(arrows=FALSE, draw=TRUE, tck=.5, col=1,
+  scales=list(arrows=FALSE, draw=TRUE, tck=.7, col=1,
             y=list(at=rev(q_all[qticks]), labels=(q_all[qticks])),
           z=list(at=c(0, .1, .2, .3, .4), labels=c("0", '0.1  ', '0.2  ', '0.3  ', '0.4  ')))
-  mdays = seq(1, 365, 5)
+  mdays = seq(1, 365, 10)
   p = list(); length(p) = 8
   trellis.par.set("axis.line",list(col=NA,lty=1,lwd=1))
 
@@ -581,7 +583,7 @@ plot.jackknife <- function(res) {
     p[[j]] = mywireframe(mdays, q_all, sqrt(res[[idx]]$v_jack[,rev(1:length(q_all))]), 
       par.settings = list(axis.line = list(col = 'transparent')),
       lattice.options = list(layout.widths = lw, layout.heights = lh),
-      ylab=ylab, main=list(label=loc.names3[j], vjust=2.5),
+      ylab=ylab, main=list(label=loc.names3[j], vjust=2.5, cex=1.2*cex.lab),
       xlab=xlab, zlab=zlab, scales=scales, zlim=c(0, .45))
   }
   pp = arrangeGrob(grobs=p, ncol=4, nrow=2)
@@ -604,6 +606,100 @@ model.variance.jackknife <- function(input, year.i=70, year.f=170, mc.cores=1) {
 
 # Plot the quantile map applied twice, with the last time applied in reverse.
 # if the transform is the same you should get the identity transform or a zero surface.
+plot.quantile.map.all.inclusive <- function(input1, input2, mq=c(.1, .5, .9), ...) {
+  cex.lab=1.2
+  zlabel = expression(paste("Change [", degree*C, ']'))
+  zlab = list(label=zlabel, x=.48, rot=90, cex=cex.lab)
+  ylab = list(label='Years', y=.5, rot=-40, cex=cex.lab)
+  xlab = list(label='Days', y=.5, rot=30, cex=cex.lab)
+
+  q_all = input1$q_all
+  nfolds = length(input1)
+  nfolds = 2
+  double.dy = array(0, dim=c(365, 180,length(q_all)))
+  yqhat_real1 = make.quantile.surfaces(input1)  
+  quantile.map.1 = aperm(apply(yqhat_real1, c(1,3), function(x) x - x[1]), c(2,1,3))
+  yqhat_real2 = make.quantile.surfaces(input2)    
+  quantile.map.2 = aperm(apply(yqhat_real2, c(1,3), function(x) x - x[1]), c(2,1,3))
+
+  all_equal = unlist(lapply(q_all, function(q) any(abs(q-mq)<0.0001)))
+  zlim = range(c(quantile.map.1[,, all_equal]), c(quantile.map.2[,, all_equal]))
+  mdays = seq(1, 365, 10)
+  myears = seq(1,180, 10)
+  
+  p = list(); length(p) = length(mq)
+  for (i in 1:length(mq)) {
+    z = quantile.map.1[,,abs(q_all-mq[i])<.00001]
+    # z = yqhat_real2[,,q_all==mq[i]]
+    p[[i]] = mywireframe(mdays, myears, z[,myears], 
+        scales=list(arrows=FALSE, col=1),
+        zlab=zlab,
+        main=list(label=paste("Probability=", mq[i], sep=''), 
+          vjust=2.5, cex=1.2*cex.lab),
+        par.settings = list(axis.line = list(col = 'transparent')),
+        ylab=ylab, 
+        xlab=xlab,
+        zlim=zlim,
+        ...)
+  }
+  p2 = list(); length(p2) = length(mq)
+  for (i in 1:length(mq)) {
+    z = quantile.map.2[,,abs(q_all-mq[i])<.00001]
+    # z = yqhat_real2[,,q_all==mq[i]]
+    p2[[i]] = mywireframe(mdays, myears, z[,myears], 
+        scales=list(arrows=FALSE, col=1),
+        zlab=zlab,
+        main=list(label=""),
+        par.settings = list(axis.line = list(col = 'transparent')),
+        ylab=ylab, 
+        xlab=xlab,
+        zlim=zlim,
+        ...)
+  }
+  c(p, p2)
+}
+
+# Plot the quantile map applied twice, with the last time applied in reverse.
+# if the transform is the same you should get the identity transform or a zero surface.
+plot.quantile.map.difference.all.inclusive <- function(input1, input2, mq=c(.1, .5, .9), ...) {
+  zlabel = expression(paste("Change [", degree*C, ']'))
+  zlab = list(label=zlabel, x=.48, rot=90, cex=cex.lab)
+  ylab = list(label='Years', y=.5, rot=-40, cex=cex.lab)
+  xlab = list(label='Days', y=.5, rot=30, cex=cex.lab)
+
+  q_all = input1$q_all
+  nfolds = length(input1)
+  nfolds = 2
+  double.dy = array(0, dim=c(365, 180,length(q_all)))
+  yqhat_real1 = make.quantile.surfaces(input1)  
+  quantile.map.1 = aperm(apply(yqhat_real1, c(1,3), function(x) x - x[1]), c(2,1,3))
+  yqhat_real2 = make.quantile.surfaces(input2)    
+  quantile.map.2 = aperm(apply(yqhat_real2, c(1,3), function(x) x - x[1]), c(2,1,3))
+  double.dy = double.dy + (quantile.map.2 - quantile.map.1)
+  all_equal = unlist(lapply(q_all, function(q) any(abs(q-mq)<0.0001)))
+  zlim = range(double.dy[,, all_equal])
+  mdays = seq(1, 365, 10)
+  myears = seq(1,180, 10)
+  
+  p = list(); length(p) = length(mq)
+  for (i in 1:length(mq)) {
+    z = double.dy[,,abs(q_all-mq[i])<.00001]
+    # z = yqhat_real2[,,q_all==mq[i]]
+    p[[i]] = mywireframe(mdays, myears, z[,myears], 
+        scales=list(arrows=FALSE, col=1),
+        zlab=zlab,
+        main=list(label=paste("Probability=", mq[i], sep=''), vjust=2.5),
+        par.settings = list(axis.line = list(col = 'transparent')),
+        ylab=ylab, 
+        xlab=xlab
+        ,zlim=zlim
+        )
+  }
+  p
+}
+
+# Plot the quantile map applied twice, with the last time applied in reverse.
+# if the transform is the same you should get the identity transform or a zero surface.
 plot.model.difference.all.inclusive <- function(input1, input2, year.i=70, year.f=170, mq=c(.1, .5, .9), ...) {
   zlabel = expression(paste("Change [", degree*C, ']'))
   zlab = list(label=zlabel, x=.48, rot=90, cex=cex.lab)
@@ -620,7 +716,7 @@ plot.model.difference.all.inclusive <- function(input1, input2, year.i=70, year.
   all_equal = unlist(lapply(q_all, function(q) any(abs(q-mq)<0.0001)))
   zlim = range(double.dy[,, all_equal])
   zlim2 = range(yqhat_real2[,, all_equal])
-  mdays = seq(1, 365, 5)
+  mdays = seq(1, 365, 10)
   myears = seq(1,180, 10)
   
   p = list(); length(p) = length(mq)
@@ -630,7 +726,7 @@ plot.model.difference.all.inclusive <- function(input1, input2, year.i=70, year.
     p[[i]] = mywireframe(mdays, myears, z[,myears], 
         scales=list(arrows=FALSE, col=1),
         zlab=zlab,
-        main=list(label=paste("Percentile=", mq[i], sep=''), vjust=2.5),
+        main=list(label=paste("Probability=", mq[i], sep=''), vjust=2.5),
         par.settings = list(axis.line = list(col = 'transparent')),
         ylab=ylab, 
         xlab=xlab
@@ -1609,6 +1705,38 @@ plot.cv.object <- function(obj) {
     main="Test Set Loss", xlab=expression(log(lambda)), ylab="Loss")
   abline(v=log(obj$lambda.min))
   abline(v=log(obj$lambda.1sd), col=2)
+}
+
+# Pick the data record nearest the specified lat and lon
+# points and get the reanalysis data
+# Import reanalysis data
+getReanalysisData3 <- function(mlat, mlon, npoints=1) {
+  filename = '/project/moyer/mahaugen/reanalysis/era_interim_land/interim_daily_latlon50--125-30--70_years1979-2016.nc'
+  ncdata <- nc_open(filename) 
+  lats = ncvar_get(ncdata, 'g0_lat_1')
+  lons = ncvar_get(ncdata, 'g0_lon_2')
+  time = ncvar_get(ncdata, 'initial_time0_hours')
+  last.t = max(which(time!=0))
+  time = time[1:last.t]
+
+  time.s=as.POSIXct('1979-01-01 00:00',tz='UTC')
+  time.e=as.POSIXct('2016-12-31 18:00',tz='UTC')
+  tseq=seq(time.s, time.e, by='6 hours')
+  times=as.POSIXct(time*60*60, origin='1800-01-01 00:00:0.0', tz='UTC')
+  t1=which(times==time.s)
+  t2=which(times==time.e)
+  
+  coords = get_nearest_lonlat(lats, lons, mlat, mlon)
+
+  dt=t2-t1+1
+  output = apply(coords, 1, function(x) {
+    rea_data = ncvar_get(ncdata, '2T_GDS0_SFC', start=c(x[1], x[2], t1),
+    count=c(1, 1, dt)) - 273.15 
+    rea_data
+  }) 
+  result = xts(output, order.by=tseq)
+  daily.mean = apply.daily(result, function(x) mean(c(x)))
+  daily.mean
 }
 
 # Pick the data record nearest the specified lat and lon

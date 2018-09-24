@@ -13,6 +13,10 @@
 # and the second takes 10 minutes with the same setup.
 # We then define constants and produce each figure, which are made to be
 # independent of each other.
+# This is run to export the raw temperature, but only works when you have 
+# the whole lens and the whole sfk15 data.
+# export.LENS.RYAN.data(location)
+# ############## ############## #############
 source('emulationHelper.R')
 load('raw_temperatures.RData')
 co2 = read.table("RCP85_MIDYR_CONC.DAT", skip=38, header=TRUE)
@@ -69,10 +73,11 @@ for (j in 1:length(loc.names3)) {
 	print(j)
 	idx = which(loc.names3[j]==loc.names)
 	comp.histlike(list(
+		as.numeric(rea.y[[idx]]),
 		as.numeric(y.lens[[idx]][years_i,]), 
-		as.numeric(y.ryan[[idx]][years_i,]),
-		as.numeric(rea.y[[idx]])), breaks=60, lwd=2, xlab="", main=loc.names3[j], cex.main=2, ylab="")
-	if (j==1) legend('topleft', c('LENS', 'Sriver', 'Reanalysis'), col=c(1,2,3), lwd=2)
+		as.numeric(y.ryan[[idx]][years_i,])
+		), breaks=60, lwd=2, xlab="", main=loc.names3[j], cex.main=2, ylab="")
+	if (j==1) legend('topleft', c('LENS', 'SFK15', 'Reanalysis'), col=c(2,3,1), lwd=2)
 	if (j %in% c(1,5)) mtext(ylab, side = 2, line = 3,  cex=cex.lab)
 	if (j %in% c(5:8)) mtext(templab, side = 1, line = 3,  cex=cex.lab)
 }
@@ -88,7 +93,7 @@ ylim = c(-5, 36)
 j = which(loc.names3[1] == loc.names)
 yqhat_real1 = make.quantile.surfaces(qout.ryan[[j]])  
 yqhat_real2 = make.quantile.surfaces(qout.lens[[j]])    
-mcolors = c(1, 2)
+mcolors = c(2, 1)
 png('figures/sample.png', width=700, height=350)
 par(mfrow=c(1,2))
 year.str = '1920'
@@ -99,7 +104,7 @@ points.frac(rep(.indexyday((y.ryan[[j]][year.str,])), 50), y.ryan[[j]][year.str,
 lines(yqhat_real2[,1,11], col=mcolors[1], lwd=2)
 lines(yqhat_real1[,1,11], col=mcolors[2], lwd=2)
 title(year.str)
-legend('topleft', c('LENS', 'Sriver'), col=mcolors, lwd=2)
+legend('topleft', c('LENS', 'SFK15'), col=mcolors, lwd=2)
 year.str = '2099'
 par(mar=c(5,5,4,2))
 plot.frac(rep(.indexyday((y.lens[[j]][year.str,])), 40), y.lens[[j]][year.str,], col=alpha(mcolors[1], .3),
@@ -115,15 +120,17 @@ dev.off()
 #########################################
 # This requires access to a X11 device, and wont work when using
 # 'mosh', only 'ssh' if working on a remote.
+# We actually reverse the quantile axis here, which automatically
+# reverses the matrix that of values along the same axis.
 #### Quantile Maps Figure 
 lw <- list(left.padding = list(x = -0.1, units = "inches"))
 lw$right.padding <- list(x = -0.2, units = "inches")
-lh <- list(bottom.padding = list(x = -.2, units = "inches"))
-lh$top.padding <- list(x = -.2, units = "inches")
+lh <- list(bottom.padding = list(x = -.2, units = "inches"),
+	top.padding = list(x = -.2, units = "inches"))
 zlabel = expression(paste("Change [", degree*C, ']'))
-cex.lab = 1
+cex.lab = 1.1
 zlab = list(label=zlabel, x=.5, rot=90, cex=cex.lab)
-ylab = list(label='Percentile', y=.5, rot=-40, cex=cex.lab)
+ylab = list(label='Probability', y=.5, rot=-40, cex=cex.lab)
 xlab = list(label='Days', y=.5, rot=30, cex=cex.lab)
 # plot Quantile Surfaces
 logplot = FALSE
@@ -149,18 +156,27 @@ for (j in 1:nloc) {
 	dy.ryan = get.quantile.change(qout.ryan[[j]])
 	dy.lens = get.quantile.change(qout.lens[[j]])
 	zlim = range(dy.ryan, dy.lens)
-	p.ryan[[j]] = mywireframe(mdays, rev(q_axis), dy.ryan[, length(q_axis):1], 
+	# if (j <= 4) {
+	# 	lh <- list(bottom.padding = list(x = 0, units = "inches"),
+	# 				top.padding = list(x = -.2, units = "inches"))
+	# } else {
+	# 	lh <- list(bottom.padding = list(x = -.2, units = "inches"),
+	# 				top.padding = list(x = -.2, units = "inches"))
+	# }
+	p.ryan[[j]] = mywireframe(mdays, rev(q_axis), dy.ryan, 
 		scales=list(arrows=FALSE, y=list(arrows=F, at=q_axis[qticks], 
       		labels=rev(q_axis[qticks])), col=1, cex=cex.tck, distance=c(1.3,1.3,1.3), 
 			tck=.8),
-		main=list(label=loc.names[j], vjust=2.5, hjust=.5),
+		main=list(label=loc.names[j], vjust=2.5, hjust=.5, cex=1.2*cex.lab),
 		zlab=(zlab),
     par.settings = list(axis.line = list(col = 'transparent')),
     lattice.options = list(layout.widths = lw, layout.heights = lh),
     ylab=ylab, 
     xlab=xlab, zlim=zlim)
+    lh <- list(bottom.padding = list(x = -.2, units = "inches"),
+					top.padding = list(x = -.2, units = "inches"))
 	
-	p.lens[[j]] = mywireframe(mdays, rev(q_axis), dy.lens[, length(q_axis):1], 
+	p.lens[[j]] = mywireframe(mdays, rev(q_axis), dy.lens, 
 		scales=list(arrows=FALSE, y=list(arrows=F, at=q_axis[qticks], 
       		labels=rev(q_axis[qticks])), col=1, cex=cex.tck, distance=c(1.3,1.3,1.3), 
 			tck=.8),
@@ -171,20 +187,71 @@ for (j in 1:nloc) {
     ylab=ylab, 
     xlab=xlab, zlim=zlim)
 }
+
 loc.ind = unlist(lapply(loc.names3, function(x) {which(x==loc.names)}))
-pp = arrangeGrob(grobs=c(p.ryan[loc.ind[1:4]], p.lens[loc.ind[1:4]], p.ryan[loc.ind[5:8]], p.lens[loc.ind[5:8]]), ncol=4, nrow=4)
+# lg <- tableGrob(c("", "26ppm", "39ppm"), theme= ttheme_minimal())
+grobs = c(p.lens[loc.ind[1:4]], p.ryan[loc.ind[1:4]], p.lens[loc.ind[5:8]], p.ryan[loc.ind[5:8]])
+pp = arrangeGrob(grobs=grobs, 
+	ncol=4, nrow=5, left=textGrob(c("      SFK15                          LENS                             SFK15                          LENS     "), 
+		rot=90, 
+		gp=gpar(fontsize=20, fontface='bold')),
+	layout_matrix=rbind(c(1,2,3,4),
+							c(5:8),
+							rep(17, 4),
+							c(9:12),
+							c(13:16)), heights = c(10, 10, 2, 10, 10))
+k = ggsave('figures/multiQuantileSurfAllInclusive.png', pp, width=11, height=11)
+pp = grid.arrange(grobs=grobs, layout_matrix=rbind(c(1,2,3,4),
+							c(5:8),
+							rep(17, 4),
+							c(9:12),
+							c(13:16)), heights = unit(c(10, 10, 2, 10, 10), rep("mm", 5))))
 # pp1 = arrangeGrob(grobs=interlace(p.ryan[1:4], p.lens[1:4]), ncol=4, nrow=2)
 # pp2 = arrange 				Grob(grobs=interlace(p.ryan[5:8], p.lens[5:8]), ncol=4, nrow=2)
-k = ggsave('figures/multiQuantileSurfAllInclusive.png', pp, width=11, height=11)
+
 
 
 #########################################
 ########### FIGURE 4 ####################
 #########################################
-j=1
-p = plot.model.difference.all.inclusive(qout.ryan[[j]], qout.lens[[j]], mq=c(.01, .5, .99))
+# idx = which(loc.names3[1]==loc.names)
+# p = plot.model.difference.all.inclusive(
+# 	input1=qout.ryan[[idx]], 
+# 	input2=qout.lens[[idx]], 
+# 	mq=c(.01, .5, .99))
+# pp = arrangeGrob(grobs=p, ncol=3, nrow=1)
+# ggsave('figures/modelDifferenceAllInclusive.pdf', pp, width=11, height=4)
+
+#########################################
+########### FIGURE 4 ####################
+#########################################
+idx = which(loc.names3[1]==loc.names)
+p = plot.quantile.map.difference.all.inclusive(
+	input1=qout.ryan[[idx]], 
+	input2=qout.lens[[idx]], 
+	mq=c(.01, .5, .99))
 pp = arrangeGrob(grobs=p, ncol=3, nrow=1)
-ggsave('figures/modelDifferenceAllInclusive.pdf', pp, width=11, height=4)
+ggsave('figures/quantileMapDifferenceAllInclusive.pdf', pp, width=11, height=4)
+
+#########################################
+########### FIGURE A1 ####################
+#########################################
+pad = -0.2
+lw <- list(left.padding = list(x = pad, units = "inches"))
+lw$right.padding <- list(x = pad, units = "inches")
+lh <- list(bottom.padding = list(x = pad, units = "inches"))
+lh$top.padding <- list(x = pad, units = "inches")
+idx = which(loc.names3[1]==loc.names)
+p = plot.quantile.map.all.inclusive(
+	input1=qout.lens[[idx]], 
+	input2=qout.ryan[[idx]], 
+	mq=c(.01, .5, .99), 
+	lattice.options = list(layout.widths = lw, layout.heights = lh))
+pp = arrangeGrob(grobs=p, ncol=3, nrow=2, 
+	left=textGrob(c("      SFK15                             LENS    "), 
+		rot=90, 
+		gp=gpar(fontsize=19, fontface='bold')))
+ggsave('figures/quantileMapAllInclusive.pdf', pp, width=10, height=6)
 
 
 #########################################
@@ -193,34 +260,42 @@ ggsave('figures/modelDifferenceAllInclusive.pdf', pp, width=11, height=4)
 # Plot double transform first lens and then Ryans back again
 # Using the all.inclusive data set (using all 40 simulations for the 
 # model building and no resampling)
+# We also reverse the quantile axis here. The lowest quantiles have 
+# the largest values.
+source('emulationHelper.R')
+cex.lab = 1.2
 xlab = list(label='Days', y=.5, rot=30, cex=cex.lab)
 zlabel = expression(paste("Change [", degree*C, ']'))
 zlab = list(label=zlabel, x=.48, rot=90, cex=cex.lab)
 qticks = qticks = c(6, 8, 11, 14, 16)
 mdays = seq(1, 365, 10)
 scales=list(arrows=FALSE, draw=TRUE, tck=.5, col=1,
-          y=list(at=rev(q_all[qticks]), labels=rev(q_all[qticks])))
+          y=list(at=q_all[qticks], labels=rev(q_all[qticks])))
 
-p = list(); length(p) = 4
-for (j in 1:4) {
+p = list(); length(p) = 8
+for (j in 1:8) {
 	idx = which(loc.names3[j] == loc.names)
-	p[[j]] = plot.double.transform.all.inclusive(qout.lens[[idx]], qout.ryan[[idx]], 
-		main=list(label=loc.names3[j], vjust=2.5), zlim=c(-.5, 6), xlab=xlab, zlab=zlab)
+	p[[j]] = plot.double.transform.all.inclusive(input1=qout.lens[[idx]], 
+		input2=qout.ryan[[idx]], 
+		main=list(label=loc.names3[j], vjust=2.5, cex=1.2*cex.lab), 
+			zlim=c(-.5, 6), 
+			xlab=xlab, zlab=zlab, scales=scales, 
+		cex.lab=cex.lab)
 }
-pp = arrangeGrob(grobs=p, ncol=4)
-ggsave('figures/QuantileDoubleAllInclusive.png', pp, width=13, height=4)
+pp = arrangeGrob(grobs=p, ncol=4, nrow=2)
+ggsave('figures/QuantileDoubleAllInclusive.png', pp, width=13, height=7)
 
 
 #########################################
 ########### FIGURE 6 ####################
 #########################################
 # Plot jacknife variance estimates
-qout.lens = lapply(qout.jack, function(x) x$lens)
-m=0;null.idx = unlist(lapply(qout.lens[[3]], function(x) {m<<-m+1; if(is.null(x$q)) m}))
-res.lens = lapply(qout.lens, model.variance.jackknife, mc.cores=16) # Takes a minute
+qout.lens.jack = lapply(qout.jack, function(x) x$lens)
+m=0;null.idx = unlist(lapply(qout.lens.jack[[3]], function(x) {m<<-m+1; if(is.null(x$q)) m}))
+res.lens = lapply(qout.lens.jack, model.variance.jackknife, mc.cores=16) # Takes a minute
 pp.lens = plot.jackknife(res.lens)
-ggsave('figures/JackknifeStdLens.png', pp.lens, width=15, height=10)
-	
+ggsave('figures/JackknifeStdLens.png', pp.lens, width=13, height=7)
+
 
 #########################################
 ########### FIGURE 7 ####################
@@ -234,6 +309,7 @@ y.lens.i = y.lens[[idx]][years_i,]
 y.f.hat1 = map.lens[[idx]]$rea.y.f
 y.f.hat2 = map.ryan.lens[[idx]]$rea.y.f
 png('figures/marginalSingleAllInclusive.png')
+par(oma=c(0,1,0,0))
 marginal.summary.plot.multi(list(
 	  y.lens.f[.indexmon(y.lens.f) %in% mseason], 
       y.f.hat1[.indexmon(y.f.hat1) %in% mseason], 
@@ -243,14 +319,15 @@ cex.lab=1.8
 legend('topleft', c('Target', 'Est-LENS', 'Est-SFK15', 'Initial'), lty=1, col=c(1,2, 3, 4), cex=1.3)
 mtext(expression(paste("Estimate [", degree*C, ']')), side = 4, line = 3,  cex=cex.lab)
 mtext('Density', side = 2, line = 3,  cex=cex.lab)
-mtext(expression(paste("Target [", degree*C, ']')), side = 1, line = 3,  cex=cex.lab)
+mtext(expression(paste("Temperature [", degree*C, ']')), side = 1, line = 3,  cex=cex.lab)
 dev.off()
 
 #########################################
-########### FIGURE 8,9,10 ####################
+########### FIGURE 8,A2,A3 ####################
 #########################################
 ## Plot seasonal marginal plots
 # Winter
+source('emulationHelper.R')
 pheight = 500
 pwidth = 1000
 y2lab = expression(paste("Estimate [", degree*C, ']'))
@@ -267,39 +344,46 @@ i = 3 #summer
 png('figures/marginalsSummerLensRyanOnLens.png', width=pwidth, height=pheight)
 multi.marginal.summary.plot.all.new(location, loc.names3, season[[i]], years_f, 
 	list(map.lens, map.ryan.lens), y.lens, 
-	include.all.runs=FALSE, leg.pos=2)
+	include.all.runs=FALSE, leg.pos=0)
 dev.off()
 
 i = 1 # winter idx
 png('figures/marginalsWinterLensRyanOnLensAllRuns.png', width=pwidth, height=pheight)
 multi.marginal.summary.plot.all.new(location, loc.names3, season[[i]], years_f, 
 	list(map.lens, map.ryan.lens), y.lens, 
-	include.all.runs=TRUE)
+	include.all.runs=TRUE, leg.pos=0)
 dev.off()
 
 
 #########################################
-########### FIGURE 11 ####################
+########### FIGURE 9 ####################
 #########################################
 # Do the same with reanalysis projected into 2099
+
 mseason=1
 j=1
 idx = which(loc.names3[j] == loc.names)
 y.f.hat.lens = maps.all.inclusive.const.year.rea[[idx]]$lens$rea.y.f
 y.f.hat.ryan = maps.all.inclusive.const.year.rea[[idx]]$ryan$rea.y.f
 y.f.hat.ryan.then.lens = maps.nested[[idx]]$ryan.then.lens.rea$rea.y.f
+colors = c(1,2,3,"darkorange1")
 png('figures/marginalSingleReaNested.png')
 par(oma=c(0,1,0,3))
-marginal.summary.plot.multi(list(
+marginal.summary.plot.multi(
+	data=list(
 	  rea.y[[idx]][.indexmon(rea.y[[idx]]) %in% mseason], 
       y.f.hat.lens[.indexmon(y.f.hat.lens) %in% mseason], 
       y.f.hat.ryan[.indexmon(y.f.hat.ryan) %in% mseason],
-      y.f.hat.ryan.then.lens[.indexmon(y.f.hat.ryan.then.lens) %in% mseason]))
+      y.f.hat.ryan.then.lens[.indexmon(y.f.hat.ryan.then.lens) %in% mseason]), 
+	colors=colors)
 cex.lab=1.8
-legend('topleft', c('Initial', 'Est-LENS', 'Est-SFK15', 'Est-SFK15->Lens'), lty=1, col=c(1,2,3,4), cex=1.3)
-mtext(expression(paste("Estimate [", degree*C, ']')), side = 4, line = 3,  cex=cex.lab)
+legend('topleft', c('Initial', 'Est-LENS', 'Est-SFK15', 'Est-SFK15->Lens'), 
+	lty=1, col=colors, cex=1.3)
+mtext(expression(paste("Estimate [", degree*C, ']')), 
+	side = 4, line = 3,  cex=cex.lab)
 mtext('Density', side = 2, line = 3,  cex=cex.lab)
-mtext(expression(paste("Target [", degree*C, ']')), side = 1, line = 3,  cex=cex.lab)
+mtext(expression(paste("Temperature [", degree*C, ']')), 
+	side = 1, line = 3,  cex=cex.lab)
 dev.off()
 
 
