@@ -21,6 +21,7 @@ source('emulationHelper.R')
 load('raw_temperatures.RData')
 co2 = read.table("RCP85_MIDYR_CONC.DAT", skip=38, header=TRUE)
 load('everything_1463_1463_310_1010.Rdata')
+load('boot_1463_1463_310_1010.Rdata')
 # load('backup_1463_1463_310_1010.Rdata')
 # IMPORTANT
 # Load ONLY if this file exists and maps.R has run successfully.
@@ -62,7 +63,46 @@ map.nested.ryan.lens = lapply(maps.nested, function(x) x$ryan.then.lens)
 
 
 #########################################
-########### FIGURE 1 ####################
+########### FIGURE StepByStepWinterChicago ####################
+#########################################
+
+source("emulationHelper.R")
+which_loc = which(loc.names == "Chicago")
+season_idx = .indexmon(rea.y[[which_loc]]) %in% c(12,1,2)
+# season_idx = .indexmon(rea.y[[which_loc]]) %in% c(1:12)
+rea.x.df = c(10, 1, 0)
+map.ryan.rea.ext = map.data.extended(qout.all.inclusive[[which_loc]]$ryan, 
+		rea.x.df, rea.y[[which_loc]][years_i], d.year=80)
+png("figures/StepByStepWinterChicago.png", width=1200, height=400)
+par(mfrow=c(1, 3), oma=c(1,3,1,3))
+par(mar=c(5,2,4,7))
+marginal.summary.plot.multi(
+	list(rea.y[[which_loc]][season_idx],
+		y.lens[[which_loc]][years_i,1][season_idx],
+		y.lens[[which_loc]][years_f,1][season_idx]),
+	ylab_left='Density', ylab_right='Temperature [deg C]', xlab='Temperature [deg C]',
+	plot.vertical=FALSE, qq=FALSE, colors=c(1,2,3))
+
+par(mar=c(5,2,4,7))
+marginal.summary.plot.multi(
+	list(map.ryan.rea.ext$rea.y.norm[season_idx], 
+		map.ryan.rea.ext$transform[season_idx], 
+		map.ryan.rea.ext$almost_final[season_idx]),
+	ylab_left='Density', ylab_right='Normalized temperature', xlab='Normalized temperature',
+	plot.vertical=FALSE, colors=c(1,4,5))
+# pch = 4
+# points(as.numeric(rea.y[[which_loc]][season_idx][1]), 
+# 	as.numeric(map.ryan.rea.ext$rea.y.f[season_idx][1]), pch=pch)
+par(mar=c(5,3,4,6))
+marginal.summary.plot.multi(list(
+	rea.y[[which_loc]][season_idx], 
+	map.ryan.rea.ext$rea.y.f[season_idx]),
+	ylab_left='Density', ylab_right='Temperature [deg C]', xlab='Temperature [deg C]',
+	plot.vertical=FALSE, colors=c(1,'darkgreen'))
+dev.off()
+
+#########################################
+########### FIGURE MarginalComparison ####################
 #########################################
 pdf('figures/MarginalComparison.pdf', height=6, width=12)
 par(oma=c(0,2,0,2), mfrow=c(2,4))
@@ -84,7 +124,7 @@ for (j in 1:length(loc.names3)) {
 dev.off()
 
 #########################################
-########### FIGURE 2 ####################
+########### FIGURE sample ####################
 #########################################
 # Plot difference between LENS and RYAN raw data
 templab = expression(paste("Temperature [", degree*C, ']'))
@@ -116,7 +156,7 @@ title(year.str)
 dev.off()
 
 #########################################
-########### FIGURE 3 ####################
+########### FIGURE multiQuantileSurfAllInclusive ####################
 #########################################
 # This requires access to a X11 device, and wont work when using
 # 'mosh', only 'ssh' if working on a remote.
@@ -212,7 +252,7 @@ pp = grid.arrange(grobs=grobs, layout_matrix=rbind(c(1,2,3,4),
 
 
 #########################################
-########### FIGURE 4 ####################
+########### FIGURE quantileMapDifferenceAllInclusive ####################
 #########################################
 # idx = which(loc.names3[1]==loc.names)
 # p = plot.model.difference.all.inclusive(
@@ -255,7 +295,7 @@ ggsave('figures/quantileMapAllInclusive.pdf', pp, width=10, height=6)
 
 
 #########################################
-########### FIGURE 5 ####################
+########### FIGURE QuantileDoubleAllInclusive ####################
 #########################################
 # Plot double transform first lens and then Ryans back again
 # Using the all.inclusive data set (using all 40 simulations for the 
@@ -285,9 +325,8 @@ for (j in 1:8) {
 pp = arrangeGrob(grobs=p, ncol=4, nrow=2)
 ggsave('figures/QuantileDoubleAllInclusive.png', pp, width=13, height=7)
 
-
 #########################################
-########### FIGURE 6 ####################
+########### FIGURE JackknifeStdLens ####################
 #########################################
 # Plot jacknife variance estimates
 qout.lens.jack = lapply(qout.jack, function(x) x$lens)
@@ -298,7 +337,18 @@ ggsave('figures/JackknifeStdLens.png', pp.lens, width=13, height=7)
 
 
 #########################################
-########### FIGURE 7 ####################
+########### FIGURE BootstrapSampleRunsLensChicago ####################
+#########################################
+# Plot bootstrap sample runs
+qout.x.boot = lapply(qout.boot, function(x) x$lens)
+zlim=c(0, 15)
+qout.lens = lapply(qout.all.inclusive, function(x) x$lens)
+pp.lens = plot.bootstrap2(input1=qout.x.boot, city='Chicago', c(-2, 2), full.model=qout.lens)
+ggsave('figures/BootstrapSampleRunsLensChicago.png', pp.lens, width=13, height=7)
+
+
+#########################################
+########### FIGURE marginalSingleAllInclusive ####################
 #########################################
 # Plot marginal plot with full current and future projections
 j=1
@@ -323,7 +373,7 @@ mtext(expression(paste("Temperature [", degree*C, ']')), side = 1, line = 3,  ce
 dev.off()
 
 #########################################
-########### FIGURE 8,A2,A3 ####################
+########### FIGURE marginalsWinterLensRyanOnLens,A2,A3 ####################
 #########################################
 ## Plot seasonal marginal plots
 # Winter
@@ -340,6 +390,8 @@ multi.marginal.summary.plot.all.new(location, loc.names3, season[[i]], years_f,
 	include.all.runs=FALSE)
 dev.off()
 
+
+#### A2, A3
 i = 3 #summer
 png('figures/marginalsSummerLensRyanOnLens.png', width=pwidth, height=pheight)
 multi.marginal.summary.plot.all.new(location, loc.names3, season[[i]], years_f, 
@@ -356,7 +408,7 @@ dev.off()
 
 
 #########################################
-########### FIGURE 9 ####################
+########### FIGURE marginalSingleReaNested ####################
 #########################################
 # Do the same with reanalysis projected into 2099
 
@@ -392,6 +444,18 @@ dev.off()
 ########## NOT IN PAPER #################
 #########################################
 # Didn't quite make it
+
+#########################################
+########### FIGURE 6.2 ####################
+#########################################
+# Plot bootstrap variance estimates
+qout.ryan.boot = lapply(qout.boot, function(x) x$ryan)
+m=0;null.idx = unlist(lapply(qout.lens.boot[[1]], function(x) {m<<-m+1; if(is.null(x$q)) m}))
+res.lens = lapply(qout.lens.boot, model.variance.bootstrap, mc.cores=16) # Takes a minute
+pp.lens = plot.bootstrap(res.lens)
+ggsave('figures/BootstrapStdLens.png', pp.lens, width=13, height=7)
+
+
 i = 1 # winter idx
 png('figures/marginalsWinterLensIdentityAllRuns.png', width=pwidth, height=pheight)
 multi.marginal.summary.plot.all(location, loc.names3, season[[i]], years_f, 

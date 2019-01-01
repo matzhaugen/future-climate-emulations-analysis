@@ -291,12 +291,14 @@ comp.histlike <- function(data, breaks=20, colors=1:length(data), ...) {
     
   breaks = seq(u[1],u[2]+dx,dx)
   k = 1
+
   if (max(breaks)<max(ylim)) breaks = c(breaks,max(breaks)+dx)
     if ("plot" %in% names(dots) && dots$plot == FALSE) {
       hist(x,breaks=breaks, plot=FALSE) 
     } else if ("xlim" %in% names(dots)) {
       histlike(breaks=h.x[[1]]$breaks,values=h.x[[1]]$density,ylim=ylim,col=colors[k], ...)
     } else {
+      print(dots)
       histlike(breaks=h.x[[1]]$breaks,values=h.x[[1]]$density,ylim=ylim,col=colors[k], xlim=u, ...)
     }
 
@@ -319,39 +321,62 @@ seasonal.marginal.summary.plot <- function(y, y.hat, season, season.names) {
       y.hat[.indexmon(y.hat)%in%(season[[j]])], main=season.names[j])
   }
 }
-
-marginal.summary.plot.multi <- function(data, colors=1:length(data)) {
+  
+marginal.summary.plot.multi <- function(data, colors=1:length(data), 
+    ylab_right="", ylab_left="", xlab="", plot.vertical=TRUE, specific.pts=c(), 
+    qq=TRUE) {
   cex.points=.3
-  cex.axis = 2
+  cex.axis = 1.4
+  cex.lab = 1.5
   comp.histlike(data, breaks=70,
-    xlab="", cex.axis=cex.axis, cex.lab=1.8, ylab='', colors=colors)
+    xlab="", cex.axis=cex.axis, cex.lab=cex.lab, ylab='', colors=colors)
   ndata = length(data)
   k=1
+  right_axis_range = range(as.numeric(unlist(data)))
   for (i in 1:ndata) {
-    sx = sort(as.numeric(data[[1]]))
+    numdata_1 = as.numeric(data[[1]])
+    sx = sort(numdata_1)
 
     lenx = length(sx)
     if (k>1) {
-      sy = sort(as.numeric(data[[i]]))
+      numdata_i = as.numeric(data[[i]])
+      sy = sort(numdata_i)
       leny = length(sy)
       if (leny < lenx) 
         sx <- approx(1L:lenx, sx, n = leny)$y
       if (leny > lenx) 
         sy <- approx(1L:leny, sy, n = lenx)$y  
     } 
-    if (k == 2) {
-      par(new=T)
-      
-      plot(sx, sy, axes=F, xlab=NA, ylab=NA, cex=cex.points, col=alpha(colors[i], .5))
-    } else if (k > 2) {
-      points(sx, sy, cex=cex.points, col=alpha(colors[i], .5))
+    if (qq) {
+      if (k == 2) {
+        par(new=T, xpd=NA)
+        
+        plot(sx, sy, axes=F, xlab="", ylab="",
+          cex=cex.points, col=alpha(colors[i], .5), ylim=right_axis_range)
+      } else if (k > 2) {
+        points(sx, sy, cex=cex.points, col=alpha(colors[i], .5))
+        if (length(specific.pts) > 0) {
+          for (k in specific.pts) {
+            points(numdata_1[k], numdata_i[k], cex=cex.points*2, col=1, pch=4)
+          }
+        }
+      }
+      par(xpd = TRUE)
+      k=k+1
     }
-    k=k+1
   }
   par(xpd=FALSE)
   abline(0,1)
-  abline(v=sx[floor(leny*0.01)], lty=2)
-  axis(side = 4, cex.axis=cex.axis)
+
+  if (plot.vertical) {
+    abline(v=sx[floor(leny*0.01)], lty=2)
+  }
+  if (qq) {
+    axis(side = 4, cex.axis=cex.axis, ylim=right_axis_range)
+    mtext(ylab_right, side=4, line=3, cex=cex.lab)
+  }
+  mtext(ylab_left, side=2, line=3, cex=cex.lab)
+  mtext(xlab, side=1, line=3, cex=cex.lab)
 }
 
 marginal.summary.plot <- function(y, y.hat, ...) {
@@ -559,6 +584,73 @@ plot.double.transform <- function(input1, input2, year.i=70, year.f=170, logplot
   p
 }
 
+# For chicago plot 8 maps
+plot.bootstrap2 <- function(input1, city="Chicago", zlim=c(0, 15), full.model=qout.lens) {
+n_fig = 8
+which_loc = which(loc.names == city)
+cex.lab=1.2
+xlab = list(label='Days', y=.5, rot=30, cex=cex.lab)
+zlabel = expression(paste("Change [", degree*C, ']'))
+zlab = list(label=zlabel, x=.48, rot=90, cex=cex.lab)
+qticks = qticks = c(6, 8, 11, 14, 16)
+
+ylab = list(label='Probability', y=.5, rot=-40, cex=cex.lab)
+lw <- list(left.padding = list(x = -0.2, units = "inches"))
+lw$right.padding <- list(x = -0.2, units = "inches")
+lh <- list(bottom.padding = list(x = -.4, units = "inches"))
+lh$top.padding <- list(x = -.2, units = "inches")
+scales=list(arrows=FALSE, draw=TRUE, tck=.7, col=1,
+          y=list(at=rev(q_all[qticks]), labels=(q_all[qticks])))
+mdays = seq(1, 365, 10)
+p = list(); length(p) = n_fig
+trellis.par.set("axis.line",list(col=NA,lty=1,lwd=1))
+full.model = get.quantile.change(full.model[[which_loc]])
+for (j in 1:n_fig) {
+  print(j)
+  dy.ryan.j = get.quantile.change(input1[[which_loc]][[j]]) - full.model
+  p[[j]] = mywireframe(mdays, q_all, dy.ryan.j[,rev(1:length(q_all))], 
+    par.settings = list(axis.line = list(col = 'transparent')),
+    lattice.options = list(layout.widths = lw, layout.heights = lh),
+    ylab=ylab, main=list(label=paste(loc.names[[which_loc]], ": ",j, sep=""), vjust=2.5, cex=1.2*cex.lab),
+    xlab=xlab, zlab=zlab, scales=scales, zlim=zlim)
+}
+pp = arrangeGrob(grobs=p, ncol=4, nrow=2)
+pp
+}
+
+# For each city plot the uncertainty
+plot.bootstrap <- function(res) {
+  cex.lab=1.2
+  xlab = list(label='Days', y=.5, rot=30, cex=cex.lab)
+  zlabel = expression(paste("|Error| [", degree*C, ']'))
+  zlab = list(label=zlabel, x=.48, rot=90, cex=cex.lab)
+  qticks = qticks = c(6, 8, 11, 14, 16)
+  
+  ylab = list(label='Probability', y=.5, rot=-40, cex=cex.lab)
+  lw <- list(left.padding = list(x = -0.2, units = "inches"))
+  lw$right.padding <- list(x = -0.2, units = "inches")
+  lh <- list(bottom.padding = list(x = -.4, units = "inches"))
+  lh$top.padding <- list(x = -.2, units = "inches")
+  scales=list(arrows=FALSE, draw=TRUE, tck=.7, col=1,
+            y=list(at=rev(q_all[qticks]), labels=(q_all[qticks])),
+          z=list(at=c(0, .1, .2, .3, .4, .5, .6), labels=c("0", '0.1  ', '0.2  ', '0.3  ', '0.4  ', '0.5  ', '0.6  ')))
+  mdays = seq(1, 365, 10)
+  p = list(); length(p) = 8
+  trellis.par.set("axis.line",list(col=NA,lty=1,lwd=1))
+
+  for (j in 1:length(res)) {
+    idx = which(loc.names3[j] == loc.names)
+    p[[j]] = mywireframe(mdays, q_all, sqrt(res[[idx]]$v_boot[,rev(1:length(q_all))]), 
+      par.settings = list(axis.line = list(col = 'transparent')),
+      lattice.options = list(layout.widths = lw, layout.heights = lh),
+      ylab=ylab, main=list(label=loc.names3[j], vjust=2.5, cex=1.2*cex.lab),
+      xlab=xlab, zlab=zlab, scales=scales, zlim=c(0, .65))
+  }
+  pp = arrangeGrob(grobs=p, ncol=4, nrow=2)
+  pp
+}
+
+
 plot.jackknife <- function(res) {
   cex.lab=1.2
   xlab = list(label='Days', y=.5, rot=30, cex=cex.lab)
@@ -590,6 +682,17 @@ plot.jackknife <- function(res) {
   pp
 }
 
+model.variance.bootstrap <- function(input, year.i=70, year.f=170, mc.cores=1) {
+  n = length(input)
+  yqhats = mclapply(input, make.quantile.surfaces, mc.cores=mc.cores)
+  nq = dim(yqhats[[1]])[3]
+  tt = lapply(yqhats, function(l) {l[,year.f,] - l[,year.i,]})
+  e_t_j = apply(array(unlist(tt), dim=c(365, nq, n)), c(1,2), sum) / n
+  v_i = lapply(tt, function(t_j) (t_j - e_t_j)^2)
+  v_boot = apply(array(unlist(v_i), dim=c(365, nq, n)), c(1,2), sum) / (n-1)
+  res = list(v_boot=v_boot)
+}
+
 model.variance.jackknife <- function(input, year.i=70, year.f=170, mc.cores=1) {
   n = length(input)
   yqhats = mclapply(input, make.quantile.surfaces, mc.cores=mc.cores)
@@ -597,7 +700,7 @@ model.variance.jackknife <- function(input, year.i=70, year.f=170, mc.cores=1) {
   t_j = lapply(yqhats, function(l) {l[,year.f,] - l[,year.i,]})
   l_jack = lapply(t_j[-1], function(t_ji) (n - 1) * (t_j[[1]] - t_ji))
   b_jack = - apply(array(unlist(l_jack), dim=c(365, nq, n - 1)), c(1,2), sum) / n
-  v_i = lapply(l_jack, function(l_jack_j) (l_jack_j^2 - b_jack^2))
+  v_i = lapply(l_jack, function(l_jack_j) (l_jack_j^2 - n * b_jack^2))
   v_jack = apply(array(unlist(v_i), dim=c(365, nq, n - 1)), c(1,2), sum) / (n*(n-1))
 
   res = list(b_jack=b_jack, v_jack=v_jack)
@@ -1177,6 +1280,133 @@ map.data <- function(params, rea.x.df, rea.y, d.year=20, identity.transform=FALS
   n_hightails = sum(idx==nq_tot)
 
   list(rea.y.f=rea.y.f, rea.coef=rea.coef, 
+    n_tails=c(n_lowtails, n_hightails), rea.x.df=rea.x.df, d.year=d.year)
+}
+
+
+map.data.extended <- function(params, rea.x.df, rea.y, d.year=80, identity.transform=FALSE, 
+  const.projection.year=NULL, nested=FALSE) {
+  # const.projection.year: if  not NULL this will project every year into the same target year.
+  # Otherwise, d.year will be used to project every year a fixed amount.
+
+  q = params$q
+  nq = length(params$q)
+  q_norm = params$q_norm
+  q_low = params$q_tail
+  mlat = params$mlat
+  q_high = rev(1-params$q_tail)
+  year.range = params$year.range
+  nyears = diff(year.range) + 1
+  norm.x.df = params$norm.x.df
+  bulk.x.df = params$bulk.x.df
+  tail.x.df = params$tail.x.df
+  if (nested) {
+    norm.x.one = getReducedPredictors(n_files=1, df.x=norm.x.df[1], df.t=norm.x.df[2], 
+      df.xt=norm.x.df[3], year.range=year.range, get.volc=T, coef=params$coef_norm)
+    bulk.x.one = getReducedPredictors(n_files=1, df.x=bulk.x.df[1], df.t=bulk.x.df[2], 
+      df.xt=bulk.x.df[3], year.range=year.range, coef=params$coef_bulk)
+    low.tail.x.one = getReducedPredictors(n_files=1, df.x=tail.x.df[1], df.t=tail.x.df[2], 
+      df.xt=tail.x.df[3], year.range=year.range, coef=params$coef_tail[[1]])
+    high.tail.x.one = getReducedPredictors(n_files=1, df.x=tail.x.df[1], df.t=tail.x.df[2], 
+      df.xt=tail.x.df[3], year.range=year.range, coef=params$coef_tail[[2]])
+    p.norm = dim(norm.x.one[[1]])[2]
+
+    yqhat = array(list_matrix_multiply(norm.x.one, params$reduced_coef_norm), dim=c(365, nyears, length(q_norm)))
+    yqhat_bulk = array(list_matrix_multiply(bulk.x.one, params$reduced_coef_bulk), dim=c(365, nyears, length(q)))
+    yqhat_low = array(list_matrix_multiply(low.tail.x.one, params$reduced_coef_tail[[1]]) + c(yqhat_bulk[,,1]), dim=c(365, nyears, length(q_low)))
+    yqhat_high = array(list_matrix_multiply(high.tail.x.one, params$reduced_coef_tail[[2]]) + c(yqhat_bulk[,,length(q)]), dim=c(365, nyears, length(q_high)))
+      
+  } else {
+    norm.x.one = getPredictors(n_files=1, df.x=norm.x.df[1], df.t=norm.x.df[2], df.xt=norm.x.df[3], year.range=year.range, get.volc=T)
+    bulk.x.one = getPredictors(n_files=1, df.x=bulk.x.df[1], df.t=bulk.x.df[2], df.xt=bulk.x.df[3], year.range=year.range)
+    tail.x.one = getPredictors(n_files=1, df.x=tail.x.df[1], df.t=tail.x.df[2], df.xt=tail.x.df[3], year.range=year.range)
+    p.norm = dim(norm.x.one)[2]
+  
+    yqhat = array(norm.x.one %*% params$coef_norm, dim=c(365, nyears, length(q_norm)))
+    yqhat_bulk = array(bulk.x.one %*% params$coef_bulk, dim=c(365, nyears, length(q)))
+    yqhat_low = array(tail.x.one %*% params$coef_tail[[1]] + c(yqhat_bulk[,,1]), dim=c(365, nyears, length(q_low)))
+    yqhat_high = array(tail.x.one %*% params$coef_tail[[2]] + c(yqhat_bulk[,,length(q)]), dim=c(365, nyears, length(q_high)))
+  }
+  nq_low = length(q_low)
+  nq_high = length(q_high)
+  nq_tot = nq + nq_low + nq_high
+
+  t = time(rea.y)
+  doy = as.numeric(strftime(t, format = "%j"))
+  rea.year = as.numeric(strftime(t, format = "%Y"))
+  min.rea.year = min(rea.year)
+  nyears = diff(range(rea.year)) + 1
+  p = dim(rea.y)[2]
+  rea.x = getPredictors(n_files=1, df.x=rea.x.df[1], df.t=rea.x.df[2], 
+    df.xt=rea.x.df[3], year.range=range(rea.year), get.volc=TRUE, mlat=mlat)
+  rea.coef = apply(rea.y, 2, function(rea.yi) {      
+      list(rq(as.numeric(rea.yi)~rea.x-1, tau=q_norm)$coef)
+    })
+  yqhat_rea = do.call(rbind, lapply(rea.coef, function(coef.i) {
+      rea.x %*% coef.i[[1]]
+    }))
+
+  m = yqhat_rea[, 2]
+  r = yqhat_rea[, 3] - yqhat_rea[, 1]
+  rea.y.norm = (rea.y - m) / r
+  m_model = yqhat[, , q_norm==0.5]
+  r_model = yqhat[, , 3] - yqhat[, , 1]
+  
+  loop.matrix = as.matrix(cbind(as.numeric(rea.y.norm), doy, r, m, rea.year - year.range[1] + 1)) 
+  rea_final = apply(loop.matrix, 1, function(z) {
+    initial_value = z[1]
+    d = z[2]
+    r_d = z[3]
+    m_d = z[4]
+    y.i = z[5]
+    if (!is.null(const.projection.year)) {
+      y.f = const.projection.year - year.range[1] + 1  
+    } else {
+      y.f = y.i + d.year  
+    }
+    
+    q_initial = c(yqhat_low[d, y.i, ], yqhat_bulk[d, y.i, ], yqhat_high[d, y.i, ])
+    q_final = c(yqhat_low[d, y.f, ], yqhat_bulk[d, y.f, ], yqhat_high[d, y.f, ])
+    nq_tot = length(q_initial)
+    idx = min(max(which(initial_value > q_initial), 1), nq_tot)
+    idx.at.edge = FALSE
+    if (idx==1) {
+      idx.at.edge = TRUE
+    } else if (idx == nq_tot) {
+      idx.at.edge = TRUE
+    }
+    diff = q_final[idx] - q_initial[idx]
+    if (idx.at.edge) {
+      # final_transform = q_final[idx]
+      
+      final_transform = initial_value + diff
+    } else {
+      final_transform = get.map.transform(initial_value, q_initial, q_final, idx)
+    }
+    if (identity.transform) {
+      final_value = r_d * r_model[d, y.f] / r_model[d, y.i] * initial_value + m_model[d, y.f] - m_model[d, y.i] + m_d
+    } else {
+      almost_final_scale = r_model[d, y.f] / r_model[d, y.i] * final_transform
+      almost_final_location = m_model[d, y.f] - m_model[d, y.i]
+      final_value = r_d * almost_final_scale + almost_final_location + m_d
+      almost_final = almost_final_scale + almost_final_location
+    }
+    # final_value = r_d * final_transform + m_f[d] - m_i[d] + m_d
+    
+    list(final_value=final_value, final_transform=final_transform, diff=diff, idx=idx,
+      almost_final=almost_final)
+  })
+
+  rea.y.f = xts(matrix(unlist(lapply(rea_final, function(x) x$final_value)), length(doy), p), order.by=t)
+  idx = unlist(lapply(rea_final, function(x) x$idx))
+  
+  transform = unlist(lapply(rea_final, function(x) x$final_transform))
+  diff = unlist(lapply(rea_final, function(x) x$diff))
+  almost_final = unlist(lapply(rea_final, function(x) x$almost_final))
+  n_lowtails = sum(idx==1)
+  n_hightails = sum(idx==nq_tot)
+
+  list(rea.y.f=rea.y.f, transform=transform, diff=diff, almost_final=almost_final, rea.coef=rea.coef, rea.y.norm=rea.y.norm,
     n_tails=c(n_lowtails, n_hightails), rea.x.df=rea.x.df, d.year=d.year)
 }
 
@@ -1857,11 +2087,11 @@ getLENSData <- function(mlat, mlon, npoints=1) {
 getModelData2 <- function(mlat, mlon) {
   KtoC = 273.15
   npoints=1
-  path.to.files = "../rsriver/timefirst2/"
+  path.to.files = "/project/moyer/mahaugen/rsriver/timefirst2/"
   files = list.files(path.to.files)
   
   # Find which pixel index to import
-  ncdata <- nc_open('../rsriver/timefirst2/trefht_4400.nc')
+  ncdata <- nc_open('/project/moyer/mahaugen/rsriver/timefirst2/trefht_4400.nc')
   lons = signif(ncvar_get(ncdata, 'lon'), digits=3)
   lats = signif(ncvar_get(ncdata, 'lat'), 3)
   date = ncvar_get(ncdata, 'date')
